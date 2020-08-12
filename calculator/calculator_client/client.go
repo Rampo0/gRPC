@@ -8,6 +8,10 @@ import (
 	"log"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
+	"google.golang.org/grpc/status"
+
 	"google.golang.org/grpc"
 )
 
@@ -29,7 +33,41 @@ func main() {
 
 	// doClientStreaming(c)
 
-	doBiDiStreaming(c)
+	// doBiDiStreaming(c)
+
+	doErrorUnary(c)
+}
+
+func doErrorUnary(c calculatorpb.CalculatorServiceClient) {
+
+	// correct call
+	doErrorCall(c, 10)
+
+	// incorrect call
+	doErrorCall(c, -2)
+}
+
+func doErrorCall(c calculatorpb.CalculatorServiceClient, n int32) {
+	res, err := c.SquareRoot(context.Background(), &calculatorpb.SquareRootRequest{Number: n})
+
+	if err != nil {
+		respErr, ok := status.FromError(err)
+		if ok {
+			// actual error from grpc (user error)
+			fmt.Printf("Error message from server : %v\n", respErr.Message())
+			fmt.Println(respErr.Code())
+			if respErr.Code() == codes.InvalidArgument {
+				fmt.Println("We probably sent a negative number !")
+				return
+			}
+
+		} else {
+			log.Fatalf("Big error calling square root : %v", err)
+			return
+		}
+	}
+
+	fmt.Printf("Result of square root of %v : %v\n", n, res.GetNumberRoot())
 }
 
 func doBiDiStreaming(c calculatorpb.CalculatorServiceClient) {
